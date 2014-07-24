@@ -21,6 +21,7 @@ module Nsq
       @max_in_flight = 0
       @socket = TCPSocket.new(host, port)
       write '  V2'
+      identify
       at_exit{close}
     end
 
