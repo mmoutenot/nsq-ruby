@@ -12,7 +12,9 @@ module Nsq
     attr_accessor :max_in_flight
     attr_reader :presumed_in_flight
 
-    USER_AGENT = "nsq-ruby-client/#{Nsq::Version::STRING}"
+    NSQ_MESSAGE_TIMEOUT_IN_SECONDS = 60
+    NSQ_USER_AGENT = "nsq-ruby-client/#{Nsq::Version::STRING}"
+
     RESPONSE_HEARTBEAT = '_heartbeat_'
     RESPONSE_OK = 'OK'
 
@@ -129,8 +131,8 @@ module Nsq
         snappy: false,
         deflate: false,
         sample_rate: 0, # disable sampling
-        user_agent: USER_AGENT,
-        msg_timeout: 60_000, # 60 seconds
+        user_agent: NSQ_USER_AGENT,
+        msg_timeout: NSQ_MESSAGE_TIMEOUT_IN_SECONDS * 1000,
       }.to_json
       write ['IDENTIFY', "\n", metadata.length, metadata].pack('a*a*l>a*')
     end

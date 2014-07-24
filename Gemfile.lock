@@ -60,6 +60,7 @@ GEM
       rspec-support (~> 3.0.0)
     rspec-support (3.0.2)
     thread_safe (0.3.4)
+    timecop (0.7.1)
 
 PLATFORMS
   ruby
@@ -69,3 +70,4 @@ DEPENDENCIES
   jeweler (~> 2.0.1)
   nsq-cluster
   rspec
+  timecop (~> 0.7.1)
