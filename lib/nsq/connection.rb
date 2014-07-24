@@ -83,12 +83,12 @@ module Nsq
 
 
     def cls
-      write 'CLS\n'
+      write "CLS\n"
     end
 
 
     def nop
-      write 'NOP\n'
+      write "NOP\n"
     end
 
 
