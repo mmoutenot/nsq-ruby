@@ -34,38 +34,12 @@ module Nsq
     end
 
 
-    def listen_for_messages(queue)
-      @stop_listening_for_messages = false
-      loop do
-        frame = receive_frame
-        if frame.is_a?(Response)
-          handle_response(frame)
-        elsif frame.is_a?(Error)
-          puts "error: #{frame.data}"
-        elsif frame.is_a?(Message)
-          queue.push(frame)
-        end
-        break if @stop_listening_for_messages
-      end
-    end
-
-
     # closes the connection and stops listening for messages
     def close
       @stop_listening_for_messages = true
       @message_thread.join if @message_thread
       @socket && cls
       @socket = nil
-    end
-
-
-    def sub(topic, channel)
-      write "SUB #{topic} #{channel}\n"
-    end
-
-
-    def rdy(count)
-      write "RDY #{count}\n"
     end
 
 
@@ -86,16 +60,6 @@ module Nsq
     end
 
 
-    def cls
-      write "CLS\n"
-    end
-
-
-    def nop
-      write "NOP\n"
-    end
-
-
     def pub(topic, message)
       write ["PUB #{topic}\n", message.length, message].pack('a*l>a*')
     end
@@ -111,6 +75,42 @@ module Nsq
 
 
     private
+    def sub(topic, channel)
+      write "SUB #{topic} #{channel}\n"
+    end
+
+
+    def rdy(count)
+      write "RDY #{count}\n"
+    end
+
+
+    def cls
+      write "CLS\n"
+    end
+
+
+    def nop
+      write "NOP\n"
+    end
+
+
+    def listen_for_messages(queue)
+      @stop_listening_for_messages = false
+      loop do
+        frame = receive_frame
+        if frame.is_a?(Response)
+          handle_response(frame)
+        elsif frame.is_a?(Error)
+          puts "error: #{frame.data}"
+        elsif frame.is_a?(Message)
+          queue.push(frame)
+        end
+        break if @stop_listening_for_messages
+      end
+    end
+
+
     def write(raw)
       @socket.write(raw)
     end
