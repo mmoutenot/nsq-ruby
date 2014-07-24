@@ -20,6 +20,9 @@ Consumer
 Discovery
 Connection
 
+# Requirements
+
+NSQ v0.2.28 or later (due to IDENTITY metadata specification)
 
 
 # TODO
@@ -36,5 +39,3 @@ Connection
   - can't be assumed that if you pop a message that you'll be able to fin, req, touch it
     the connection might have gone away!
   - when a connection dies, should we remove those messages from the queue?
-
-
