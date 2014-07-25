@@ -3,8 +3,6 @@ require_relative '../../spec_helper'
 describe Nsq::Consumer do
 
   before do
-    puts ''
-    puts '-' * 100
     @nsqd_count = 3
     @cluster = NsqCluster.new(nsqlookupd_count: 2, nsqd_count: @nsqd_count)
     @cluster.block_until_running
@@ -22,8 +20,6 @@ describe Nsq::Consumer do
   after do
     @consumer.terminate
     @cluster.destroy
-    puts '^' * 100
-    puts ''
   end
 
 
@@ -73,7 +69,6 @@ describe Nsq::Consumer do
         until string == 'needle'
           msg = @consumer.messages.pop
           string = msg.body
-          puts "MESSAGE: #{string}"
           msg.finish
         end
         true
@@ -104,7 +99,6 @@ describe Nsq::Consumer do
         while (expected_messages & received_messages).length < expected_messages.length do
           msg = @consumer.messages.pop
           received_messages << msg.body
-          puts msg.body
           msg.finish
         end
 
