@@ -21,7 +21,7 @@ module Nsq
     end
 
 
-    def open?
+    def alive?
       !!@socket
     end
 
