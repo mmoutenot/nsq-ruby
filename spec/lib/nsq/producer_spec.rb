@@ -2,13 +2,18 @@ require_relative '../../spec_helper'
 require 'json'
 
 describe Nsq::Producer do
+
+  def new_consumer
+    super(discovery_interval: 0.5)
+  end
+
   before do
-    @cluster = NsqCluster.new(nsqd_count: 1)
+    @cluster = NsqCluster.new(nsqd_count: 2, nsqlookupd_count: 1)
     @nsqd = @cluster.nsqd.first
     @producer = new_producer(@nsqd)
   end
   after do
-    @producer.terminate
+    @producer.terminate if @producer
     @cluster.destroy
   end
 
@@ -32,18 +37,82 @@ describe Nsq::Producer do
         new_producer(@nsqd)
       }.to raise_error
     end
+
+    context 'provided with lookupds' do
+      it 'should be connected' do
+        lookupd_producer = new_lookupd_producer
+        wait_for {
+          lookupd_producer.connected?
+        }
+        expect(lookupd_producer.connected?).to equal(true)
+      end
+    end
   end
 
   describe '#connected?' do
-    it 'should delegate to Connection#connected?' do
-      connection = @producer.instance_variable_get(:@connection)
-      obj = {}
-      expect(connection).to receive(:connected?).at_least(1).and_return(obj)
-      expect(@producer.connected?).to equal(obj)
+    context 'has a connection' do
+      it 'should return true' do
+        expect(@producer.connected?).to equal(true)
+      end
+    end
+
+    context 'does not have a connection' do
+      before do
+        @nsqd.stop()
+      end
+      it 'should return false' do
+        expect(@producer.connected?).to equal(false)
+      end
+    end
+
+    describe 'using nsqlookupd' do
+      before do
+        @cluster.nsqd.each { |nsqd| nsqd.stop }
+      end
+
+      context 'no nsqds available' do
+        it 'should have no connections' do
+          lookupd_producer = new_lookupd_producer
+          expect(lookupd_producer.connected?).to equal(false)
+        end
+      end
+
+      context 'one nsqd available' do
+        it 'should connect as nsqds start' do
+          lookupd_producer = new_lookupd_producer
+          @nsqd.start()
+          wait_for {
+            lookupd_producer.connected?
+          }
+          expect(lookupd_producer.connected?).to equal(true)
+        end
+      end
+
+      context 'all nsqds available' do
+        it 'should connect as nsqds start' do
+          lookupd_producer = new_lookupd_producer
+          @cluster.nsqd.each { |nsqd| nsqd.start }
+          wait_for {
+            lookupd_producer.connected?
+          }
+          expect(lookupd_producer.connected?).to equal(true)
+        end
+      end
     end
   end
 
   describe '#write' do
+    context 'has multiple connections' do
+      it 'writes to a random connection' do
+        lookupd_producer = new_lookupd_producer
+        wait_for {
+          lookupd_producer.connected?
+        }
+        expect_any_instance_of(Nsq::Connection).to receive(:pub)
+        lookupd_producer.write('howdy!')
+      end
+    end
+
     it 'can queue a message' do
       @producer.write('some-message')
       wait_for{message_count==1}
@@ -74,27 +143,32 @@ describe Nsq::Producer do
 
       messages_received = []
 
-      assert_no_timeout(5) do
+      begin
         consumer = new_consumer
-        # TODO: make the socket fail faster
-        # We only get 9 of the 10 we send. First one is lost because we can't
-        # detect that it didn't make it.
-        9.times do |i|
-          msg = consumer.pop
-          messages_received << msg.body
-          msg.finish
+        assert_no_timeout(5) do
+          # TODO: make the socket fail faster
+          # We only get 8 or 9 of the 10 we send. The first few can be lost
+          # because we can't detect that they didn't make it.
+          8.times do |i|
+            msg = consumer.pop
+            messages_received << msg.body
+            msg.finish
+          end
         end
+      ensure
         consumer.terminate
       end
 
-      expect(messages_received.uniq.length).to eq(9)
+      expect(messages_received.uniq.length).to eq(8)
     end
 
     # Test PUB
     it 'can send a single message with unicode characters' do
       @producer.write('☺')
       consumer = new_consumer
-      expect(consumer.pop.body).to eq('☺')
+      assert_no_timeout do
+        expect(consumer.pop.body).to eq('☺')
+      end
       consumer.terminate
     end
 
@@ -102,10 +176,12 @@ describe Nsq::Producer do
     it 'can send multiple message with unicode characters' do
       @producer.write('☺', '☺', '☺')
       consumer = new_consumer
-      3.times do
-        msg = consumer.pop
-        expect(msg.body).to eq('☺')
-        msg.finish
+      assert_no_timeout do
+        3.times do
+          msg = consumer.pop
+          expect(msg.body).to eq('☺')
+          msg.finish
+        end
       end
       consumer.terminate
     end
